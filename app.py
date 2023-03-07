@@ -25,20 +25,45 @@ def has_license(path):
 
 
 
-def check_files(directory, components):
+def check_python_files(directory, components):
     import os
     import ast
     import pkg_resources
     # 定义字典，用于保存找到的开源组件及其版本号
     used_components = {}
+    comment_lines = 0
+    code_lines = 0
 
-    # 遍历指定目录下的所有java代码文件
     for root, dirs, files in os.walk(directory):
         for filename in files:
-            if filename.endswith(".java"):
+            if filename.endswith(".py"):
+                filepath = os.path.join(root, filename)
+                with open(filepath, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if re.match(r'\s*#', line):
+                            comment_lines += 1
+                with open(filepath, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    tree = ast.parse(content)
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Str):
+                            if '\n' in node.value.s:
+                                comment_lines += node.value.s.count('\n') + 1
+                with open(filepath, "r", encoding="utf-8") as f:
+                    lines = f.readlines()
+                    code_lines = len(lines)
+    stats = {
+        '代码总行数': code_lines,
+        '代码注释行数': comment_lines,
+    }
+    # 遍历指定目录下的所有代码文件
+    for root, dirs, files in os.walk(directory):
+        for filename in files:
+            if filename.endswith(".py"):
                 filepath = os.path.join(root, filename)
                 with open(filepath, "r", encoding="utf-8") as f:
                     code = f.read()
+
                 # 将代码解析为抽象语法树
                 tree = ast.parse(code)
                 # 遍历查找所有的导入语句
@@ -68,7 +93,41 @@ def check_files(directory, components):
                 used_components[component] = package.version
 
     # 返回找到的开源组件及其版本号
-    return used_components
+    return f"""{used_components}<br>
+               {stats}"""
+# def check_java_files(directory, components):
+#     import os
+#     from javalang import parse
+#     import pkg_resources
+#
+#     # 定义字典，用于保存找到的开源组件及其版本号
+#     used_components = {}
+#
+#     # 遍历指定目录下的所有Java代码文件
+#     for root, dirs, files in os.walk(directory):
+#         for filename in files:
+#             if filename.endswith(".java"):
+#                 filepath = os.path.join(root, filename)
+#                 with open(filepath, "r", encoding="utf-8") as f:
+#                     code = f.read()
+#                 # 将代码解析为语法树
+#                 tree = parse.parse(code)
+#                 # 遍历查找所有的导入语句
+#                 for imp in tree.imports:
+#                     # 检查导入的类名是否包含指定的组件名称
+#                     for component in components:
+#                         if component in imp.path[-1]:
+#                             used_components[component] = None
+#
+#     # 遍历所有已安装的包，查找使用的开源组件并获取它们的版本号
+#     for package in pkg_resources.working_set:
+#         for component, version in used_components.items():
+#             if component in package.project_name.lower():
+#                 used_components[component] = package.version
+#
+#     # 返回找到的开源组件及其版本号
+#     return used_components
+
 @app.route('/')
 def index():
     return render_template('upload.html', upload_path=app.config['UPLOAD_FOLDER'])
@@ -88,7 +147,11 @@ def upload_file():
 
 @app.route('/check', methods=['POST'])
 def check():
-    components = ['fastjson', 'commons', 'spring', 'hibernate', 'log4j', 'tomcat', 'junit', 'selenium', 'kafka','redis']#开源组件列表
+    #开源组件数组
+    components_py = ['fastjson', 'commons', 'spring', 'hibernate', 'log4j', 'Tomcat', 'junit', 'selenium', 'kafka','redis']
+    components_java = ['gson', 'jackson', 'log4j', 'slf4j', 'commons', 'junit', 'mockito', 'spring', 'hibernate', 'kafka','redis', 'elasticsearch', 'hadoop']
+
     path = request.form.get('path')#检索的目录
-    res = check_files(path,components)
-    return res
+    res_py = check_python_files(path,components_py)
+    # res_java = check_java_files(path,components_java)
+    return res_py

@@ -1,1 +1,28 @@
-123
+for root, dirs, files in os.walk(directory):
+    for filename in files:
+        if filename.endswith(".java"):
+            filepath = os.path.join(root, filename)
+            with open(filepath, "r", encoding="utf-8") as f:
+                code = f.readlines()
+
+                stats = {
+                    'total_lines': len(code),
+                    'code_lines': 0,
+                    'comment_lines': 0,
+                    'blank_lines': 0,
+                }
+
+                for line in code:
+                    if line.strip() == '':
+                        stats['blank_lines'] += 1
+                    elif line.strip().startswith('//'):
+                        stats['comment_lines'] += 1
+                    elif line.strip().startswith('/*') or line.strip().endswith('*/'):
+                        stats['comment_lines'] += 1
+                    elif '/*' in line or '*/' in line:
+                        stats['comment_lines'] += 1
+                    else:
+                        stats['code_lines'] += 1
+
+                # Print or use the statistics as needed
+                print(stats)

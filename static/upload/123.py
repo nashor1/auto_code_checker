@@ -1,6 +1,6 @@
-import fastjson
-import ast
-import pkg_resources
+import os
+import commons
+import log4j
 # 定义字典，用于保存找到的开源组件及其版本号
 used_components = {}
 for root, dirs, files in os.walk(directory):
